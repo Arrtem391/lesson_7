@@ -13,23 +13,26 @@ def render_progressbar(total, iteration, prefix='', suffix='', length=30, fill='
     return '{0} |{1}| {2}% {3}'.format(prefix, pbar, percent, suffix)
 
 
-def wait(chat_id, message):
-    seconds = parse(message)
-    if not seconds:
-        bot.send_message(chat_id, "Неверный формат времени. Используйте например '5s' или '1m'")
-        return
-    
-    message_id = bot.send_message(chat_id, f"Осталось {seconds} секунд\n{render_progressbar(seconds, seconds)}")
-    
-    def update_message(secs_left):
-        progress_bar = render_progressbar(seconds, seconds - secs_left)
-        bot.update_message(chat_id, message_id, f"Осталось {secs_left} секунд\n{progress_bar}")
+def make_wait_handler(bot_instance):
+    def wait(chat_id, message):
+        seconds = parse(message)
+        if not seconds:
+            bot_instance.send_message(chat_id, "Неверный формат времени. Используйте например '5s' или '1m'")
+            return
         
-        if secs_left == 0:
-            bot.send_message(chat_id, "Время вышло!")
+        message_id = bot_instance.send_message(chat_id, f"Осталось {seconds} секунд\n{render_progressbar(seconds, seconds)}")
+        
+        def update_message(secs_left):
+            progress_bar = render_progressbar(seconds, seconds - secs_left)
+            bot_instance.update_message(chat_id, message_id, f"Осталось {secs_left} секунд\n{progress_bar}")
+            
+            if secs_left == 0:
+                bot_instance.send_message(chat_id, "Время вышло!")
+        
+        update_message(seconds)
+        bot_instance.create_countdown(seconds, update_message)
     
-    update_message(seconds)
-    bot.create_countdown(seconds, update_message)
+    return wait
 
 
 def main():
@@ -37,9 +40,9 @@ def main():
     tg_token = os.getenv('T_TOKEN')
     tg_chat_id = os.getenv('T_CHAT_ID')
 
-    global bot
     bot = ptbot.Bot(tg_token)
-    bot.reply_on_message(wait)
+    wait_handler = make_wait_handler(bot)
+    bot.reply_on_message(wait_handler)
     bot.send_message(tg_chat_id, "Бот запущен. Отправьте время для отсчёта (например, '5s' или '1m')")
     bot.run_bot()
 
