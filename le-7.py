@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import ptbot
 from pytimeparse import parse
+from functools import partial
 
 
 def render_progressbar(total, iteration, prefix='', suffix='', length=30, fill='█', zfill='░'):
@@ -13,6 +14,16 @@ def render_progressbar(total, iteration, prefix='', suffix='', length=30, fill='
     return '{0} |{1}| {2}% {3}'.format(prefix, pbar, percent, suffix)
 
 
+def create_update_message(bot_instance, chat_id, message_id, total_seconds):
+    def update_message(secs_left):
+        progress_bar = render_progressbar(total_seconds, total_seconds - secs_left)
+        bot_instance.update_message(chat_id, message_id, f"Осталось {secs_left} секунд\n{progress_bar}")
+        
+        if secs_left == 0:
+            bot_instance.send_message(chat_id, "Время вышло!")
+    return update_message
+
+
 def make_wait_handler(bot_instance):
     def wait(chat_id, message):
         seconds = parse(message)
@@ -22,13 +33,7 @@ def make_wait_handler(bot_instance):
         
         message_id = bot_instance.send_message(chat_id, f"Осталось {seconds} секунд\n{render_progressbar(seconds, seconds)}")
         
-        def update_message(secs_left):
-            progress_bar = render_progressbar(seconds, seconds - secs_left)
-            bot_instance.update_message(chat_id, message_id, f"Осталось {secs_left} секунд\n{progress_bar}")
-            
-            if secs_left == 0:
-                bot_instance.send_message(chat_id, "Время вышло!")
-        
+        update_message = create_update_message(bot_instance, chat_id, message_id, seconds)
         update_message(seconds)
         bot_instance.create_countdown(seconds, update_message)
     
