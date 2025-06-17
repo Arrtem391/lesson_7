@@ -20,7 +20,10 @@ def send_initial_message(bot_instance, chat_id, seconds):
 
 def update_message(bot_instance, chat_id, message_id, total_seconds, secs_left):
     progress_bar = render_progressbar(total_seconds, total_seconds - secs_left)
-    bot_instance.update_message(chat_id, message_id, f"Осталось {secs_left} секунд\n{progress_bar}")
+    try:
+        bot_instance.update_message(chat_id, message_id, f"Осталось {secs_left} секунд\n{progress_bar}")
+    except ptbot.exceptions.BadRequest:
+        pass
     
     if secs_left == 0:
         bot_instance.send_message(chat_id, "Время вышло!")
